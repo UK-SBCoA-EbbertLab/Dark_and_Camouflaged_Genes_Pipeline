@@ -50,11 +50,13 @@ def main(percent_camo_file, biotype_camo_file, coding_camo_file, label):
 		region_id = annos['ID']
 		region_name = annos['Name']
 		
-		gene_id = "_".join(region_id.split('_')[0:-2])
+		gene_id = region_id
+		if "_" in region_id: gene_id = "_".join(region_id.split('_')[0:-2])
 		if region_type == "gene":
 			gene_id = region_id
 		if gene_id.startswith("gene"): gene_id = gene_id[5:]
-		gene_name = "_".join(region_name.split('_')[0:-2])
+		gene_name = region_name
+		if "_" in region_name: gene_name = "_".join(region_name.split('_')[0:-2])
 		gene_names[gene_id] = gene_name
 		
 		biotype_bin = biotype
@@ -111,7 +113,7 @@ def main(percent_camo_file, biotype_camo_file, coding_camo_file, label):
 	percent_camo.write("# gene_name : Ensembl gene name\n")
 	percent_camo.write("# biotype : GENCODE biotype of gene\n")
 	percent_camo.write("# biotype : percent of CDS bases that are %s within gene (non protein-coding genes will have value of -1)\n" % label)
-	percent_camo.write("# perc_UTR : percent of UTR bases that are %s within gene (non protein-coding genes will have value of -1(\n" % label)
+	percent_camo.write("# perc_UTR : percent of UTR bases that are %s within gene (non protein-coding genes will have value of -1)\n" % label)
 	percent_camo.write("# perc_exon : percent of exonic bases that are %s\n" % label)
 	percent_camo.write("# perc_intron : percent of intronic bases that are %s\n" % label)
 	percent_camo.write("# perc_total : percent of total gene that is %s\n" % label)

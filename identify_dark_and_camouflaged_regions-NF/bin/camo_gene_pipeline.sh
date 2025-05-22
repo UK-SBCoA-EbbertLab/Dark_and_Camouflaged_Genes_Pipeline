@@ -161,7 +161,7 @@ time bedtools merge -c 8 -o collapse -i $DEPTH_BED | \
 			echo "ERROR (`date`): Failed to merge coordinates for $DEPTH_BED. See log for details."
 			exit 1
 		fi
-
+#
 
 # Check if the exit status for every cmd in the pipe were successful.
 # Cannot simply use 'if ! <cmd>' if piping multiple cmds together. The environment

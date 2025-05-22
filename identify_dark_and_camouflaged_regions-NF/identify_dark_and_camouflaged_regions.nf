@@ -81,9 +81,6 @@ params.sample_input_tag = "Test_samples"
 // params.sample_input_tag = "Original_ADSP_samples"
 
 /*
- * Defines the number of reads per BWA alignment job. This number must be
- * divisible by 4 because reads in a .fastq file use 4 lines.
- *
  * NOTE: If this number results in a single .fastq file for the sample, Nextflow
  * will error out with something like the following:
  * Invalid method invocation `groupKey` with arguments: A-CUHS-CU003023-test (java.lang.String), 26766997 (java.lang.Long) on Nextflow type
@@ -165,6 +162,17 @@ params.isONT = false
 
 params.isPacBio = false
 
+/*
+ * This is flag tells whether the data you are giving is Single End or not (Default: False)
+*/
+params.isSE = false
+
+/*
+ * This is flag tells whether the data you are giving is Single End or not (Default: False)
+*/
+params.DRF_Stringency = "LENIENT"
+//params.DRF_Stringency = "STRICT"
+
 
 
 
@@ -186,6 +194,8 @@ log.info """\
  isLongRead                     : ${params.isLongRead}
  isONT                          : ${params.isONT}
  isPacBio                       : ${params.isPacBio}
+ isSE                           : ${params.isSE}
+ DRF_Stringency                 : ${params.DRF_Stringency}
  """
 
 
@@ -208,10 +218,10 @@ include {MASK_GENOME_PROC} from './modules/06-MASK_GENOME.nf'
 workflow{
 
     /* test that params.reads_per_run is divisible by 4 */
-    if(params.reads_per_run  % 4 != 0){
-        throw Exception("ERROR: reads_per_run must be divisible by 4. Please" +
-            " specify a number that is divisible by 4.")
-    }
+    //if(params.reads_per_run  % 4 != 0){
+    //    throw Exception("ERROR: reads_per_run must be divisible by 4. Please" +
+    //        " specify a number that is divisible by 4.")
+    //}
 
     /*
      * Prefix for various output files.
@@ -221,7 +231,7 @@ workflow{
     /*
      * Only re-align if the original and align_to refs are different.
      */
-//    if(params.original_ref != params.align_to_ref){
+//     if(params.original_ref != params.align_to_ref){
 
         /*
          * Step 01: Realign input sample files
@@ -234,29 +244,37 @@ workflow{
          * process for each input sample file and genome intervals of size
          * 'params.DRF_interval_length'.
          */
-        RUN_DRF_WF(REALIGN_SAMPLES_WF.out, params.DRF_interval_length)
-//    }
-//    else {
-//
-//        /*
-//         * Create sample input tuples
-//         */
-//
-//        println "Input path: ${params.input_sample_path}"
-//        Channel.fromPath(params.input_sample_path, checkIfExists: true)
-//            | map { print it; tuple( it.baseName, it ) }
-//            | view()
-//            | set { sample_input_files_ch }
-//
-//        Channel.fromPath("${params.input_sample_path}.{bai,cai,crai}", checkIfExists: true)
-//            | map { tuple( it.baseName, it ) }
-//            | view()
-//            | set { sample_input_indexes_ch }
-//
-//        System.exit(0)
-//
-//        RUN_DRF_WF(sample_input_files_ch, params.DRF_interval_length)
-//    }
+        RUN_DRF_WF(REALIGN_SAMPLES_WF.out)
+        //RUN_DRF_WF(REALIGN_SAMPLES_WF.out, params.DRF_interval_length)
+ //    }
+ //    else {
+ //
+ //        /*
+ //         * Create sample input tuples
+ //         */
+ //
+
+//	val=tuple((params.input_sample_path),
+//            Channel.fromPath("${params.input_sample_path}*.{bam,cram}"),
+//            Channel.fromPath("${params.input_sample_path}*.{bam,cram}{.bai,.csi,.crai}"))
+
+
+         //Channel.fromFilePairs("${params.input_sample_path}.{bam,cram}{.bai,.csi,.crai}", checkIfExists: true)
+ //        Channel.fromFilePairs("${params.input_sample_path}{.bai,.csi,.crai}", checkIfExists: true)
+ //            | map { tuple( it.baseName, it[0], it[1] ) }
+ //            | view()
+ //            | set { sample_input_files_ch }
+// 
+//         Channel.fromPath("${params.input_sample_path}.{bai,cai,crai}", checkIfExists: true)
+//             | map { tuple( it.baseName, it ) }
+//             | view()
+//             | set { sample_input_indexes_ch }
+// 
+//         System.exit(0)
+// 
+//         //RUN_DRF_WF(val, params.DRF_interval_length)
+//         RUN_DRF_WF(sample_input_files_ch, params.DRF_interval_length)
+//     }
  
 
     /*

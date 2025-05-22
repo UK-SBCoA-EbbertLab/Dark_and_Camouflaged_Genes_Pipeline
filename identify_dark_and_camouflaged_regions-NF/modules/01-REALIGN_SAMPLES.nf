@@ -81,36 +81,56 @@ workflow REALIGN_SAMPLES_WF {
     */
 
     if("${params.isLongRead}" == false){
-        sample_input_files
-            | lsamtools_collate_and_fastq_proc
-            | split_fastq_proc
-            | map { sample_name, fastq_files ->
-                tuple( groupKey(sample_name, fastq_files.size()), fastq_files )
-            }
-            | transpose()
-            | combine( lsamtools_view_header_proc.out, by: 0 )
-            | set { realignment_inputs_ch }
+	if("${params.isSE}" == false){
+		sample_input_files
+		    | lsamtools_collate_and_fastq_proc
+		    | split_fastq_proc
+		    | map { sample_name, fastq_files ->
+			tuple( groupKey(sample_name, fastq_files.size()), fastq_files )
+		    }
+		    | transpose()
+		    | combine( lsamtools_view_header_proc.out, by: 0 )
+		    | set { realignment_inputs_ch }
 
-	     /*
-	      * Steps will do as follows for re-alignment:
-	      *   1. bwa_mem_proc: Re-align the mini .fastq files using BWA MEM
-	      *   2. lsamtools_csort_proc: sort the individual mini .(b|cr)am files
-	      *      generated from BWA MEM
-	      *   3. groupTuple: group mini .(b|cr)am files by sample name
-	      *   4. map: creates tuples of sample_name and the mini .(b|cr)am files
-	      *   5. lsamtools_merge_proc: merge all of the mini .(b|cr)am files
-	      */
-	     bwa_mem_proc( realignment_inputs_ch )
-		 | lsamtools_csort_proc
-		 | groupTuple()
-		 | map { sample_name, bam_files ->
-		     tuple( sample_name.toString(), bam_files )
-		 }
-		 | lsamtools_merge_proc
-		 // | view()
+		     /*
+		      * Steps will do as follows for re-alignment:
+		      *   1. bwa_mem_proc: Re-align the mini .fastq files using BWA MEM
+		      *   2. lsamtools_csort_proc: sort the individual mini .(b|cr)am files
+		      *      generated from BWA MEM
+		      *   3. groupTuple: group mini .(b|cr)am files by sample name
+		      *   4. map: creates tuples of sample_name and the mini .(b|cr)am files
+		      *   5. lsamtools_merge_proc: merge all of the mini .(b|cr)am files
+		      */
+		     bwa_mem_proc( realignment_inputs_ch )
+			 | lsamtools_csort_proc
+			 | groupTuple()
+			 | map { sample_name, bam_files ->
+			     tuple( sample_name.toString(), bam_files )
+			 }
+			 | lsamtools_merge_proc
+			 // | view()
+	} else {
+		 sample_input_files
+		    | lsamtools_fastq_proc
+		    | split_fastq_proc
+		    | map { sample_name, fastq_files ->
+			tuple( groupKey(sample_name, fastq_files.size()), fastq_files )
+		    }
+		    | transpose()
+		    | combine( lsamtools_view_header_proc.out, by: 0 )
+		    | set { realignment_inputs_ch }
+
+	         bwa_mem_proc( realignment_inputs_ch )
+	       	    | lsamtools_csort_proc
+	       	    | groupTuple()
+	       	    | map { sample_name, bam_files ->
+	       	        tuple( sample_name.toString(), bam_files )
+	       	    }
+	       	    | lsamtools_merge_proc
+	       	    // | view()
 
 
-
+	}
     } else {
          sample_input_files
             | lsamtools_fastq_proc
@@ -318,7 +338,6 @@ process bwa_mem_proc {
         bwa mem \\
             -p \\
             -t "${task_cpus}" \\
-            -M \\
             -C \\
             -H <(grep "^@RG" "${header}") \\
             "${params.align_to_ref}" \\
@@ -331,14 +350,13 @@ process bwa_mem_proc {
         bwa mem \\
             -p \\
             -t "${task_cpus}" \\
-            -M \\
             -C \\
             -H <(grep "^@RG" "${header}") \\
             "${params.align_to_ref}" \\
             "${fastq}" |
         lsamtools view \\
             -C \\
-            -T params.align_to_ref \\
+            -T "${params.align_to_ref}" \\
             -o "${fastq.baseName}.unsorted.mini.cram" \\
             -
     fi
@@ -371,11 +389,11 @@ process minimap2_proc {
                 -t "${task_cpus}" \\
                 -a \\
                 -x map-ont \\
-                -Y \\
+		--secondary=no \\
+		-Y \\
                 --eqx \\
-                --secondary=no \\
                 -L \\
-                -O 5,56 \\
+		-O 5,56 \\
                 -E 4,1 \\
                 -B 5 \\
                 -z 400,50 \\
@@ -383,19 +401,18 @@ process minimap2_proc {
                 "${params.align_to_ref}" \\
                 "${fastq}" |
             lsamtools view \\
-                -1 \\
-                -O bam \\
+                -T "${params.align_to_ref}" \\
                 -o "${fastq.baseName}.unsorted.mini.bam" \\
                 -
         else
             minimap2 \\
                 -t "${task_cpus}" \\
                 -a \\
-                -Y \\
                 --eqx \\
-                --secondary=no \\
+		--secondary=no \\
+		-Y \\
                 -L \\
-                -O 5,56 \\
+		-O 5,56 \\
                 -E 4,1 \\
                 -B 5 \\
                 -z 400,50 \\
@@ -415,11 +432,11 @@ process minimap2_proc {
                 -t "${task_cpus}" \\
                 -a \\
                 -x map-pb \\
-                -Y \\
                 --eqx \\
-                --secondary=no \\
+		--secondary=no \\
+		-Y \\
                 -L \\
-                -O 5,56 \\
+		-O 5,56 \\
                 -E 4,1 \\
                 -B 5 \\
                 -z 400,50 \\
@@ -427,8 +444,7 @@ process minimap2_proc {
                 "${params.align_to_ref}" \\
                 "${fastq}" |
             lsamtools view \\
-                -1 \\
-                -O bam \\
+                -T "${params.align_to_ref}" \\
                 -o "${fastq.baseName}.unsorted.mini.bam" \\
                 -
         else
@@ -436,11 +452,11 @@ process minimap2_proc {
                 -t "${task_cpus}" \\
                 -a \\
                 -x map-pb \\ 
-                --secondary=no \\
-                -Y \\
                 --eqx \\
+		--secondary=no \\
+		-Y \\
                 -L \\
-                -O 5,56 \\
+		-O 5,56 \\
                 -E 4,1 \\
                 -B 5 \\
                 -z 400,50 \\
@@ -496,19 +512,23 @@ process csort_proc {
         sambamba index \\
             -t "${task.cpus}" \\
             --show-progress \\
-            "${bam.baseName}.csorted.bam"
+            "${bam.baseName}.csorted.bam" 
 
     else
         # sambamba does not support .cram, so still using lsamtools
         lsamtools sort \\
             -@ "${additional_threads}" \\
             -m ${mem_per_thread} \\
-            -o "${bam.baseName}.csorted.bam" \\
+            -o "${bam.baseName}.csorted.cram" \\
             -T "${bam.baseName}.csorted" \\
             -O cram \\
             --reference "${params.align_to_ref}" \\
-            --write-index \\
             "${bam}"
+
+        lsamtools index \\
+            -@ "${additional_threads}" \\
+            "${bam.baseName}.csorted.cram" 
+
     fi
     """
 }
@@ -545,18 +565,26 @@ process lsamtools_csort_proc {
             -m "${mem_per_thread}" \\
             -o "${bam.baseName}.csorted.bam" \\
             -T "${bam.baseName}.csorted" \\
-            --write-index \\
             "${bam}"
+
+        lsamtools index \\
+            -@ "${additional_threads}" \\
+            "${bam.baseName}.csorted.bam"
+
     else
         lsamtools sort \\
             -@ "${additional_threads}" \\
             -m "${mem_per_thread}" \\
-            -o "${bam.baseName}.csorted.bam" \\
+            -o "${bam.baseName}.csorted.cram" \\
             -T "${bam.baseName}.csorted" \\
             -O cram \\
             --reference "${params.align_to_ref}" \\
-            --write-index \\
             "${bam}"
+
+        lsamtools index \\
+            -@ "${additional_threads}" \\
+            "${bam.baseName}.csorted.cram"
+
     fi
     """
 }
@@ -593,8 +621,12 @@ process lsamtools_merge_proc {
             -c \\
             -p \\
             "${sample_name}.${params.align_to_ref_tag}.sorted.merged.final.bam" \\
-            --write-index \\
             ${bams}
+
+        lsamtools index \\
+            -@ "${additional_threads}" \\
+            "${sample_name}.${params.align_to_ref_tag}.sorted.merged.final.bam"
+
     else
         lsamtools merge \\
             -@ "${additional_threads}" \\
@@ -602,8 +634,12 @@ process lsamtools_merge_proc {
             -p \\
             -O cram \\
             "${sample_name}.${params.align_to_ref_tag}.sorted.merged.final.cram" \\
-            --write-index \\
             ${bams}
+
+        lsamtools index \\
+            -@ "${additional_threads}" \\
+            "${sample_name}.${params.align_to_ref_tag}.sorted.merged.final.cram"
+
     fi
     """
 }

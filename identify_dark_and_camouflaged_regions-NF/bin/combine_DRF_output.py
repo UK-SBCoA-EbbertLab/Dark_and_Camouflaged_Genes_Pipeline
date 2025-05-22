@@ -26,7 +26,7 @@ def main(low_mapq_file_list, combined_low_depth_out_file, combined_low_mapq_out_
     try:
         beds_to_combine = []
         low_mapq_bed_list = open(low_mapq_file_list, 'rt')
-        print("opened the low_mapq_bed file list")
+        print(low_mapq_bed_list)
         for line in low_mapq_bed_list:
             bed_file_name = line.strip()
             beds_to_combine.append(open(bed_file_name, 'rt'))
@@ -34,7 +34,7 @@ def main(low_mapq_file_list, combined_low_depth_out_file, combined_low_mapq_out_
         # Write .gzip files
         with mgzip.open(combined_low_depth_out_file, 'wt', thread=2) as combined_low_depth:
             with mgzip.open(combined_low_mapq_out_file, 'wt', thread=2) as combined_low_mapq:
-                print(beds_to_combine)
+                #print(beds_to_combine)
 
                 for line in beds_to_combine[0]:
 
@@ -47,7 +47,7 @@ def main(low_mapq_file_list, combined_low_depth_out_file, combined_low_mapq_out_
                         continue
 
                     toks = line.strip().split('\t')
-                    print(toks)
+                    #print(toks)
                     chrom = toks[0]
                     start = int(toks[1])
                     if start % 1000000 == 0:
@@ -87,7 +87,7 @@ def main(low_mapq_file_list, combined_low_depth_out_file, combined_low_mapq_out_
                     avgPercMapQBelowThresh = avgMapQBelowThresh / avgDepth * 100 if avgDepth > 0 else -1.0
                     avgDepthExludingDeletions = float(avgDepthExcludingDeletions_total) / len(beds_to_combine)
                     avgReadsWithDeletions = float(nReadsWithDeletions_total) / len(beds_to_combine)
-                    print(avgReadsWithDeletions)
+                    #print(avgReadsWithDeletions)
 
                     out_line = "%s\t%d\t%d\t%f\t%f\t%f\t%f\t%f\n" % (chrom, start, start + 1, avgMapQBelowThresh, avgPercMapQBelowThresh, avgDepthExludingDeletions, avgReadsWithDeletions, avgDepth)
                             

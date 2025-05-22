@@ -25,5 +25,6 @@ process COMBINE_DRF_OUTPUT_PROC {
 	script:
 	"""
 	bash combine_DRF.sh '${low_mapq_bed_list}' $result_prefix $task.cpus
+	echo "Updated"
 	"""
 }

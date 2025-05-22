@@ -13,18 +13,49 @@ nextflow.enable.dsl=2
  *
  * This part of the Identify dark and camouflaged regions workflow is not fully
  * converted to Nextflow like the re-alignment portion was. It's a possible TODO.
- *
- *            | view()
- *            //| COMBINE_SAMPLE_DRF_FILES_PROC
- *       // COMBINE_SAMPLE_DRF_FILES_PROC.out
  */
 workflow RUN_DRF_WF {
     take:
         sample_input_ch
+
     main:
+
+        /*
+         * Create intervals to split DRF jobs across intervals
+         */
+        /*        intervals = create_intervals( params.align_to_ref, interval_length )
+         * 
+         *         intervals_file = file("${params.align_to_ref_tag}.DRF_intervals.txt")
+         *         intervals_file.delete()
+         *         intervals.each {
+         *             intervals_file << "${it}\n"
+         *         }
+         * 
+         *         // intervals = ['1:10000-20000', '1:207496157-207641765',
+         *         //                 '5:55555-66666', '22:15693544-15720708']
+         *         intervals_ch = Channel.from( intervals )
+         * 
+         * 
+         *         /*
+         *          * Create cartesian product for samples and inputs so all intervals
+         *          * are run on all samples
+         *          */
+         *         samples_and_intervals = sample_input_ch
+         *             .combine(intervals_ch)
+         */
+        /*
+         * Run DRF and combine sample DRF files
+         */
+        /* RUN_DRF_PROC( samples_and_intervals)
+         *     | view()
+         *     | groupTuple(size: intervals.size())
+         */     | COMBINE_SAMPLE_DRF_FILES_PROC
         RUN_DRF_PROC( sample_input_ch )
+            | view()
+            | COMBINE_SAMPLE_DRF_FILES_PROC
     emit:
-	RUN_DRF_PROC.out
+        COMBINE_SAMPLE_DRF_FILES_PROC.out
+
 }
 
 
@@ -40,17 +71,18 @@ process RUN_DRF_PROC {
 
 
     tag { "${sample_name}:${sample_input_file}" }
-    publishDir("${params.results_dir}/02-RUN_DRF", mode: 'copy')
 	
 	label 'RUN_DRF_PROC'
 
 	input:
         tuple val(sample_name),
                 path(sample_input_file),
-                path(sample_input_file_index)
+                path(sample_input_file_index),
 
 	output:
-                path("*.dark.low_mapq*.bed*.gz")
+		tuple val(sample_name),
+                 path("**/${sample_name}*.dark.low_mapq*.bed*.gz"),
+                 emit: low_mapq_beds
 
 	script:
 	"""
